@@ -1,0 +1,68 @@
+---
+title: "HSTC Viability"
+author: "Felix Westcott"
+date: "2023-04-21"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+library(ggplot2)
+library(readxl)
+library(xlsx)
+library(dplyr)
+library(ggpubr)
+library(ggsci)
+library(rstatix)
+library(cowplot)
+library(ggprism)
+
+All_Data <- read_excel("HSTC Viability.xlsx", sheet = 1)
+
+All_Data$"Condition" <- factor(All_Data$"Condition", levels = c("Maintainance Media", "LPS Control", "Low Insulin Control", "Low Insulin OPLA", "Low Insulin POLA", "High Insulin Control", "High Insulin OPLA", "High Insulin POLA"))
+
+All_Data$"Insulin" <- factor(All_Data$"Insulin", levels = c("Low", "High"))
+
+All_Data$"Culture" <- factor(All_Data$"Culture", levels = c("Direct", "Co-Culture"))
+
+All_Data$ATP <- All_Data$`ATP Concentration (nM)`
+
+
+```
+
+
+``` {R, Stats}
+
+aov.res <- aov(ATP ~ Condition, data = All_Data)
+
+summary.aov(aov.res)
+
+Tukey <- TukeyHSD(aov.res)
+
+
+```
+
+
+```{R}
+
+All_Data$Insulin_Culture <- paste(All_Data$Insulin, "Insulin", All_Data$Culture)
+
+ggline(filter(All_Data, All_Data$Media != "MM"), "Day", "ATP", add = "mean_se", legend.title = " ", palette = "npg",  color = "Insulin_Culture") +
+   theme_prism(base_size = 14) +
+  theme(legend.position = "right", legend.title = element_text()) +
+       scale_y_continuous(limits = c(0,3000))
+#ggsave('C:/Users/fwestcott/OneDrive - Nexus365/Desktop/Results/HSTC/Graphs/Viability.png')
+
+
+ggbarplot(filter(All_Data, All_Data$Day != "1" & All_Data$Day != "2"), "Condition", "ATP", add = "mean_se", error.plot = "upper_errorbar", legend.title = " ", palette = "npg", fill = "Culture", position = position_dodge(0.9)) +
+   theme_prism(base_size = 14) +
+  theme(legend.position = "bottom", legend.title = element_text()) +
+      scale_y_continuous(expand = expansion(mult = c(0, 0.22))) +
+   scale_x_discrete(labels = function(x) str_wrap(x, width = 10))
+
+
+
+
+
+```
