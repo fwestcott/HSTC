@@ -28,13 +28,22 @@ All_Data$"Culture" <- factor(All_Data$"Culture", levels = c("Direct", "Co-Cultur
 
 All_Data$ATP <- All_Data$`ATP Concentration (nM)`
 
+All_Data$Insulin_Culture <- paste(All_Data$Insulin, "Insulin", All_Data$Culture)
+
+All_Data$Day_Culture <- paste("Day", All_Data$Day, All_Data$Culture)
+
+All_Data$Day_Culture <- factor(All_Data$Day_Culture, levels = c("Day 0 Direct", "Day 1 Direct", "Day 2 Direct", "Day 3 Direct", "Day 1 Co-Culture", "Day 2 Co-Culture", "Day 3 Co-Culture"))
+
+All_Data$Day <- factor(All_Data$Day)
+
+All_Data_NoMM <- filter(All_Data, All_Data$Day != 0)
 
 ```
 
 
 ``` {R, Stats}
 
-aov.res <- aov(ATP ~ Condition, data = All_Data)
+aov.res <- aov(ATP ~ Day*Culture*Insulin*Media, data = All_Data)
 
 summary.aov(aov.res)
 
@@ -46,23 +55,61 @@ Tukey <- TukeyHSD(aov.res)
 
 ```{R}
 
-All_Data$Insulin_Culture <- paste(All_Data$Insulin, "Insulin", All_Data$Culture)
-
-ggline(filter(All_Data, All_Data$Media != "MM"), "Day", "ATP", add = "mean_se", legend.title = " ", palette = "npg",  color = "Insulin_Culture") +
+ggline(All_Data, "Day", "ATP", add = "mean_se", legend.title = " ", palette = "npg",  color = "Insulin_Culture") +
    theme_prism(base_size = 14) +
   theme(legend.position = "right", legend.title = element_text()) +
        scale_y_continuous(limits = c(0,3000))
-#ggsave('C:/Users/fwestcott/OneDrive - Nexus365/Desktop/Results/HSTC/Graphs/Viability.png')
+ggsave('C:/Users/fwestcott/OneDrive - Nexus365/Desktop/Results/HSTC/Graphs/Viability.png')
 
+pairwise.test <- All_Data %>% 
+  t_test(ATP ~ Day_Culture) %>%
+  add_xy_position(x = "Day_Culture")
+pairwise.test <- filter(pairwise.test, p.adj.signif != "ns")
 
-ggbarplot(filter(All_Data, All_Data$Day != "1" & All_Data$Day != "2"), "Condition", "ATP", add = "mean_se", error.plot = "upper_errorbar", legend.title = " ", palette = "npg", fill = "Culture", position = position_dodge(0.9)) +
+ggbarplot(All_Data, "Day_Culture", "ATP", add = "mean_se", error.plot = "upper_errorbar", legend.title = " ", palette = "npg", fill = "Culture") +
    theme_prism(base_size = 14) +
   theme(legend.position = "bottom", legend.title = element_text()) +
       scale_y_continuous(expand = expansion(mult = c(0, 0.22))) +
-   scale_x_discrete(labels = function(x) str_wrap(x, width = 10))
+   scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+stat_pvalue_manual(pairwise.test, label = "p.adj.signif", step.increase = 0.2, bracket.size = 0.5, y.position = 3000)
+
+ggsave('C:/Users/fwestcott/OneDrive - Nexus365/Desktop/Results/HSTC/Graphs/Day Culture Viability.png')
+
+pairwise.test <- All_Data_NoMM %>%
+  group_by(Culture) %>%
+  t_test(ATP ~ Day)%>%
+  add_xy_position(x = "Culture", dodge = 0.8)
+pairwise.test <- filter(pairwise.test, p.adj.signif != "ns")
+
+ggbarplot(All_Data_NoMM, "Culture", "ATP", add = "mean_se", error.plot = "upper_errorbar", palette = "npg", fill = "Day", xlab = " ", position = position_dodge(0.8)) +
+   theme_prism(base_size = 14) +
+  theme(legend.position = "top", legend.title = element_text()) +
+      scale_y_continuous(expand = expansion(mult = c(0, 0.22))) +
+   scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+stat_pvalue_manual(pairwise.test, label = "p.adj.signif", step.increase = 0.2, bracket.size = 0.5, y.position = 2500)
 
 
 
+pairwise.test1 <- All_Data_NoMM %>%
+  group_by(Day) %>%
+  t_test(ATP ~ Culture) %>% 
+  adjust_pvalue(method = "holm") %>%
+  add_significance("p.adj") %>%
+  add_xy_position(x = "Day", dodge = 0.8)
+pairwise.test1 <- filter(pairwise.test1, p.adj.signif != "ns")
+
+pairwise.test2 <- All_Data %>% 
+  t_test(ATP ~ Day) %>%
+  add_xy_position(x = "Day")
+pairwise.test2 <- filter(pairwise.test2, p.adj.signif != "ns")
+
+ggbarplot(All_Data, "Day", "ATP", add = "mean_se", error.plot = "upper_errorbar", palette = "npg", fill = "Culture", xlab = " ", position = position_dodge(0.8)) +
+   theme_prism(base_size = 14) +
+  theme(legend.position = "top", legend.title = element_text()) +
+      scale_y_continuous(expand = expansion(mult = c(0, 0.22))) +
+   scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+stat_pvalue_manual(pairwise.test1, label = "p.adj.signif", step.increase = 0.2, bracket.size = 0.5, y.position = 2500) +
+stat_pvalue_manual(pairwise.test2, label = "p.adj.signif", step.increase = 0.2, bracket.size = 0.5, y.position = 2800)
 
 
 ```
